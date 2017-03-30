@@ -13,7 +13,6 @@ def all_grams(text, n=3):
     grams = []
     for i in range(n):
         grams.extend(n_gram(text, i+1))
-        n_gram(text, i+1)
     return grams
 
 
@@ -49,7 +48,12 @@ def cosine_distance(category_vector, title_vector):
     :param title_vector: title vector
     :return: cosine distance between the two given vectors
     """
-    return dot(category_vector, title_vector)
+    inner = dot(category_vector, title_vector)
+    dist_category = sum(map(lambda x: x**2, category_vector))
+    dist_title = sum(map(lambda x: x**2, title_vector))
+
+    angle = inner / (dist_category*dist_title)
+    return angle
 
 
 def classify(category_vector_table, title_vector):
