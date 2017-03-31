@@ -1,4 +1,5 @@
 from numpy import dot
+from math import sqrt
 import csv_reader
 
 
@@ -49,8 +50,8 @@ def cosine_distance(category_vector, title_vector):
     :return: cosine distance between the two given vectors
     """
     inner = dot(category_vector, title_vector)
-    dist_category = sum(map(lambda x: x**2, category_vector))
-    dist_title = sum(map(lambda x: x**2, title_vector))
+    dist_category = sqrt(sum(map(lambda x: x**2, category_vector)))
+    dist_title = sqrt(sum(map(lambda x: x**2, title_vector)))
 
     angle = inner / (dist_category*dist_title)
     return angle
