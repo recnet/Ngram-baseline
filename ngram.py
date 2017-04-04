@@ -43,7 +43,7 @@ def build_title_vector(table, words):
     return vector
 
 
-def cosine_distance(category_vector, title_vector):
+def cosine_similarity(category_vector, title_vector):
     """
     :param category_vector: category vector
     :param title_vector: title vector
@@ -67,9 +67,9 @@ def classify(category_vector_table, title_vector):
     best_user = None
     first = True
     for user in category_vector_table.keys():
-        distance = cosine_distance(category_vector_table[user], title_vector)
-        if distance >= best_so_far or first:
-            best_so_far = distance
+        cosine = cosine_similarity(category_vector_table[user], title_vector)
+        if cosine >= best_so_far or first:
+            best_so_far = cosine
             best_user = user
             first = False
     return best_user, best_so_far
@@ -115,9 +115,9 @@ def print_percentage(correct, total):
     print("Correct guess {0}% of the time".format(100*(correct/total)))
 
 if __name__ == "__main__":
-    path = "data/training_data_top_n_single.csv"
+    path = "data/training_data_top_n.csv"
     titles, users = read(path)
-    path = "data/validation_data_top_n_single.csv"
+    path = "data/validation_data_top_n.csv"
     val_titles, val_users = read(path)
 
     user2full_title = user_titles_table(titles, users)
