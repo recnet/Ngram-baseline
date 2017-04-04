@@ -53,8 +53,8 @@ def cosine_similarity(category_vector, title_vector):
     dist_category = sqrt(sum(map(lambda x: x**2, category_vector)))
     dist_title = sqrt(sum(map(lambda x: x**2, title_vector)))
 
-    angle = inner / (dist_category*dist_title)
-    return angle
+    cosine = inner / (dist_category*dist_title)
+    return  cosine
 
 
 def classify(category_vector_table, title_vector):
