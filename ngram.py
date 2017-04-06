@@ -54,25 +54,31 @@ def cosine_similarity(category_vector, title_vector):
     dist_title = sqrt(sum(map(lambda x: x**2, title_vector)))
 
     cosine = inner / (dist_category*dist_title)
-    return  cosine
+    return cosine
 
 
-def classify(category_vector_table, title_vector):
+def all_cosines(category_vector_table, title_vector):
     """
     :param category_vector_table: dictionary mapping each user to their category vector
     :param title_vector: vector to compare against
-    :return: user with the minimum distance and the actual distance
+    :return: list of tuples of user and cosine between the title_vector and that users category vector
     """
-    best_so_far = 0
-    best_user = None
-    first = True
-    for user in category_vector_table.keys():
+    results = [None]*len(category_vector_table.keys())
+    for index, user in enumerate(category_vector_table.keys()):
         cosine = cosine_similarity(category_vector_table[user], title_vector)
-        if cosine >= best_so_far or first:
-            best_so_far = cosine
-            best_user = user
-            first = False
-    return best_user, best_so_far
+        results[index] = (cosine, user)
+    return results
+
+
+def classify(category_vector_table, title_vector, predicate=lambda x: [max(x)]):
+    """
+    :param category_vector_table: dictionary mapping each user to their category vector
+    :param title_vector: vector to compare against
+    :param predicate: function that takes a list of cosine, user tuples return which ones to recommend
+    :return: predicate function applied with the list of cosine,user tuples
+    """
+    cosines = all_cosines(category_vector_table,title_vector)
+    return predicate(cosines)
 
 
 def user_titles_table(raw_titles, raw_users):
@@ -111,13 +117,18 @@ def read(file_path):
     return csv_reader.CsvReader().get_data(file_path)
 
 
-def print_percentage(correct, total):
-    print("Correct guess {0}% of the time".format(100*(correct/total)))
+def print_stats(true_positive, true_negative, false_negative, false_positive, total):
+    precision = true_positive / (true_positive + false_positive)
+    recall = true_positive / (true_positive + false_negative)
+    f1_score = 2 * ((precision*recall) / (precision+recall))
+    print("Correct guess {0}% of the time (precision {1} )".format(100*precision, precision))
+    print("recall is {0} ".format(recall))
+    print("F1 score {0} ".format(f1_score))
 
 if __name__ == "__main__":
-    path = "data/training_data_top_n.csv"
+    path = "data/training_data_top_n_single.csv"
     titles, users = read(path)
-    path = "data/validation_data_top_n.csv"
+    path = "data/validation_data_top_n_single.csv"
     val_titles, val_users = read(path)
 
     user2full_title = user_titles_table(titles, users)
@@ -145,18 +156,46 @@ if __name__ == "__main__":
 
     del user2full_title
 
-    correct_count = 0
+    true_positive = 0
+    true_negative = 0
+    false_positive = 0
+    false_negative = 0
+
     count = 0
+
+    def top2(x):
+        x1 = max(x)
+        x2 = max(set(x)-set(x1))
+        return [x1, x2]
+
     for title, user in zip(val_titles, val_users):
         title_vector = build_title_vector(all_grams_index_table, title.split())
-        predicted_user, dist = classify(categories, title_vector)
-        if predicted_user == user:
-            correct_count += 1
+        predictions = classify(categories, title_vector, predicate=top2)
+        predictions = list(map(lambda x: x[1], predictions))
+
+        for prediction in predictions:
+            if prediction == user:
+                # should recommend, did recommend
+                true_positive += 1
+            else:
+                # should not recommend, did recommend
+                false_positive += 1
+        for not_prediction in set(val_users) - set(predictions):
+            if not_prediction == user:
+                # should recommend, did not recommend
+                false_negative += 1
+            else:
+                # should not recommend, did not recommend
+                true_negative += 1
 
         count += 1
         if count % 50 == 0:
             print("finished {0} iterations out of a total of {1}".format(count, len(val_titles)))
-            print("Total number of correct {0}".format(correct_count))
-            print_percentage(correct_count, count)
+            print_stats(true_positive, true_negative, false_negative, false_positive, count)
 
-    print_percentage(correct_count, len(val_titles))
+    print_stats(true_positive, true_negative, false_negative, false_positive, count)
+    print("True positives {0} ".format(true_positive))
+    print("True negative {0} ".format(true_negative))
+    print("false negative {0} ".format(false_negative))
+    print("false positives {0} ".format(false_positive))
+
