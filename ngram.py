@@ -1,6 +1,7 @@
 from numpy import dot
 from math import sqrt
 import csv_reader
+import sys
 
 
 def n_gram(text, n):
@@ -57,7 +58,11 @@ def cosine_similarity(category_vector, title_vector):
     return cosine
 
 
-def all_cosines(category_vector_table, title_vector):
+def euclidean_distance(categoty_vector, title_vector):
+    return sqrt(sum(map(lambda x: (x[0]-x[1])**2, zip(categoty_vector, title_vector))))
+
+
+def all_measures(measure_function, category_vector_table, title_vector):
     """
     :param category_vector_table: dictionary mapping each user to their category vector
     :param title_vector: vector to compare against
@@ -65,20 +70,20 @@ def all_cosines(category_vector_table, title_vector):
     """
     results = [None]*len(category_vector_table.keys())
     for index, user in enumerate(category_vector_table.keys()):
-        cosine = cosine_similarity(category_vector_table[user], title_vector)
-        results[index] = (cosine, user)
+        res = measure_function(category_vector_table[user], title_vector)
+        results[index] = (res, user)
     return results
 
 
-def classify(category_vector_table, title_vector, predicate=lambda x: [max(x)]):
+def classify(measure_function, category_vector_table, title_vector, predicate=lambda x: [max(x)]):
     """
     :param category_vector_table: dictionary mapping each user to their category vector
     :param title_vector: vector to compare against
     :param predicate: function that takes a list of cosine, user tuples return which ones to recommend
     :return: predicate function applied with the list of cosine,user tuples
     """
-    cosines = all_cosines(category_vector_table,title_vector)
-    return predicate(cosines)
+    measures = all_measures(measure_function, category_vector_table,title_vector)
+    return predicate(measures)
 
 
 def user_titles_table(raw_titles, raw_users):
@@ -88,11 +93,11 @@ def user_titles_table(raw_titles, raw_users):
     :return: dictionary from users to a single long title (all their titles concatenated)
     """
     table = {}
-
-    for title, user in zip(raw_titles, raw_users):
-        if user not in table:
-            table[user] = []
-        table[user].append(title)
+    for title, users in zip(raw_titles, raw_users):
+        for user in users.split():
+            if user not in table:
+                table[user] = []
+            table[user].append(title)
 
     for key in table.keys():
         table[key] = " ".join(table[key])
@@ -127,13 +132,16 @@ def print_stats(true_positive, true_negative, false_negative, false_positive, to
 
 if __name__ == "__main__":
     path = "data/training_data_top_n_single.csv"
+    #path = "data/training_data_top_50.csv"
     titles, users = read(path)
+    #path = "data/validation_data_top_50.csv"
     path = "data/validation_data_top_n_single.csv"
     val_titles, val_users = read(path)
 
     user2full_title = user_titles_table(titles, users)
     user2full_title_val = user_titles_table(val_titles, val_users)
     print("number of users {0}".format(len(user2full_title_val)))
+    #print(user2full_title_val)
 
     # Don't need these anymore
     del titles
@@ -168,25 +176,27 @@ if __name__ == "__main__":
         x2 = max(set(x)-set(x1))
         return [x1, x2]
 
-    for title, user in zip(val_titles, val_users):
+    for title, users in zip(val_titles, val_users):
         title_vector = build_title_vector(all_grams_index_table, title.split())
-        predictions = classify(categories, title_vector, predicate=top2)
+        predictions = classify(cosine_similarity, categories, title_vector, predicate=top2)
+        #predictions = classify(euclidean_distance, categories, title_vector, predicate=lambda x: [min(x)])
         predictions = list(map(lambda x: x[1], predictions))
 
-        for prediction in predictions:
-            if prediction == user:
-                # should recommend, did recommend
-                true_positive += 1
-            else:
-                # should not recommend, did recommend
-                false_positive += 1
-        for not_prediction in set(val_users) - set(predictions):
-            if not_prediction == user:
-                # should recommend, did not recommend
-                false_negative += 1
-            else:
-                # should not recommend, did not recommend
-                true_negative += 1
+        for user in users.split():
+            for prediction in predictions:
+                if prediction == user:
+                    # should recommend, did recommend
+                    true_positive += 1
+                else:
+                    # should not recommend, did recommend
+                    false_positive += 1
+            for not_prediction in set(val_users) - set(predictions):
+                if not_prediction == user:
+                    # should recommend, did not recommend
+                    false_negative += 1
+                else:
+                    # should not recommend, did not recommend
+                    true_negative += 1
 
         count += 1
         if count % 50 == 0:
