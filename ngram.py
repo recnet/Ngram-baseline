@@ -1,5 +1,7 @@
 from numpy import dot
 from math import sqrt
+from numpy import mean
+import numpy as np
 import csv_reader
 import sys
 
@@ -119,8 +121,12 @@ def make_category_table(grams_index_table, user_title_table):
 
 def read(file_path):
     "titles, users"
-    return csv_reader.CsvReader().get_data(file_path)
+    return csv_reader.CsvReader().get_data(file_path, label_column=2)
 
+def allAboveMean(x):
+	m = sum([k[0] for k in x])/len(x)
+	res = [item for item in x if (item[0]) >= m]	
+	return res
 
 def print_stats(true_positive, true_negative, false_negative, false_positive, total):
     precision = true_positive / (true_positive + false_positive)
@@ -131,11 +137,11 @@ def print_stats(true_positive, true_negative, false_negative, false_positive, to
     print("F1 score {0} ".format(f1_score))
 
 if __name__ == "__main__":
-    path = "data/training_data_top_n_single.csv"
+    path = "data/training_data_top_5_subreddit_allvotes.csv"
     #path = "data/training_data_top_50.csv"
     titles, users = read(path)
     #path = "data/validation_data_top_50.csv"
-    path = "data/validation_data_top_n_single.csv"
+    path = "data/validation_data_top_5_subreddit_allvotes.csv"
     val_titles, val_users = read(path)
 
     user2full_title = user_titles_table(titles, users)
@@ -176,9 +182,12 @@ if __name__ == "__main__":
         x2 = max(set(x)-set(x1))
         return [x1, x2]
 
+
+
+
     for title, users in zip(val_titles, val_users):
         title_vector = build_title_vector(all_grams_index_table, title.split())
-        predictions = classify(cosine_similarity, categories, title_vector, predicate=top2)
+        predictions = classify(cosine_similarity, categories, title_vector, predicate=allAboveMean)
         #predictions = classify(euclidean_distance, categories, title_vector, predicate=lambda x: [min(x)])
         predictions = list(map(lambda x: x[1], predictions))
 
@@ -201,7 +210,7 @@ if __name__ == "__main__":
         count += 1
         if count % 50 == 0:
             print("finished {0} iterations out of a total of {1}".format(count, len(val_titles)))
-            print_stats(true_positive, true_negative, false_negative, false_positive, count)
+            # print_stats(true_positive, true_negative, false_negative, false_positive, count)
 
     print_stats(true_positive, true_negative, false_negative, false_positive, count)
     print("True positives {0} ".format(true_positive))
